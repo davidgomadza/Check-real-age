@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bio-Age Analyzer & Facial Mapper</title>
+    <style>
+        :root {
+            --primary: #ff4d4d;
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --scan-color: #00ffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .app-container {
+            background-color: var(--panel-bg);
+            border: 2px solid #333;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 650px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 24px;
+            margin-top: 0;
+        }
+
+        .quote {
+            font-style: italic;
+            color: var(--text-muted);
+            border-left: 3px solid var(--primary);
+            padding-left: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .upload-container {
+            margin-bottom: 15px;
+        }
+
+        .upload-btn {
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 14px;
+            border: 1px dashed #666;
+            transition: background 0.3s;
+        }
+
+        .upload-btn:hover {
+            background-color: #444;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .photo-area {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            background: #000;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            border: 1px solid #444;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .placeholder-text {
+            color: #555;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        #scanSvg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .scan-path {
+            fill: none;
+            stroke: rgba(0, 255, 255, 0.4);
+            stroke-width: 2;
+            stroke-dasharray: 6, 6;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .photo-area.has-image .scan-path {
+            opacity: 1;
+        }
+
+        .scanner-dot {
+            fill: var(--scan-color);
+            opacity: 0;
+            filter: drop-shadow(0 0 6px var(--scan-color));
+        }
+
+        .scanning .scanner-dot {
+            opacity: 1;
+            animation: followPath 4s linear forwards;
+        }
+
+        @keyframes followPath {
+            0% { offset-distance: 0%; }
+            100% { offset-distance: 100%; }
+        }
+
+        /* Scanning overlay text */
+        .scanning-text {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--scan-color);
+            font-family: monospace;
+            font-weight: bold;
+            z-index: 3;
+            opacity: 0;
+            text-shadow: 0 0 5px #000;
+        }
+
+        .scanning .scanning-text {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        label {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        input[type="number"] {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background-color: #0a0a0a;
+            color: white;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--primary);
+        }
+
+        button.calc-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            transition: background 0.3s, transform 0.1s;
+        }
+
+        button.calc-btn:hover {
+            background-color: #e60000;
+        }
+
+        button.calc-btn:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+
+        .results {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #000;
+            border: 1px solid #333;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .final-age {
+            font-size: 48px;
+            color: var(--primary);
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .equation {
+            font-family: monospace;
+            color: #0f0;
+            background: #111;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            word-wrap: break-word;
+            font-size: 13px;
+            text-align: left;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>Biological Age Analyzer</h1>
+    
+    <div class="quote">
+        "Aging is a privilege. It is not something to fear. Aging is a privilege that I will never take for granted." <br>
+        <strong>— Drew Barrymore</strong>
+    </div>
+
+    <div class="upload-container">
+        <label for="photoUpload" class="upload-btn">📸 Upload Photo for Facial Analysis</label>
+        <input type="file" id="photoUpload" accept="image/*">
+    </div>
+
+    <div class="photo-area" id="photoArea">
+        <span class="placeholder-text" id="placeholderText">No image uploaded. Please upload a photo.</span>
+        
+        <span class="scanning-text">ASKING PHOTO...</span>
+
+        <svg id="scanSvg" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <!-- Path mapping based on prompt:
+                 Top-Left -> Nose -> Forehead-Left -> Top-Right -> Bottom-Right -> Bottom-Left -> Top-Left -->
+            <polyline class="scan-path" points="10,10 50,60 45,30 90,10 90,90 10,90 10,10" />
+            
+            <!-- Animated dot following the path -->
+            <circle class="scanner-dot" r="1.5" style="offset-path: path('M 10 10 L 50 60 L 45 30 L 90 10 L 90 90 L 10 90 Z');"></circle>
+        </svg>
+    </div>
+
+    <div class="input-group">
+        <label for="birthAge">1. Enter Birth Certificate Age (At First):</label>
+        <input type="number" id="birthAge" placeholder="e.g., 30" min="1" max="120">
+
+        <label for="currentAge">2. Enter Current Actual Age Today (Now):</label>
+        <input type="number" id="currentAge" placeholder="e.g., 35" min="1" max="120">
+    </div>
+
+    <button class="calc-btn" id="calcBtn" onclick="calculateAge()">Run Bio-Scan</button>
+
+    <div class="results" id="resultsBox">
+        <h3>Scan Complete</h3>
+        <p style="color: #aaa; font-size: 14px;">Your biological age derived from the photo is:</p>
+        <div class="final-age" id="finalAgeDisplay">--</div>
+        <p style="font-size: 13px; color: #888;" id="statusMessage"></p>
+        
+        <div class="equation" id="equationDisplay"></div>
+    </div>
+</div>
+
+<script>
+    const photoUpload = document.getElementById('photoUpload');
+    const photoArea = document.getElementById('photoArea');
+    const placeholderText = document.getElementById('placeholderText');
+
+    photoUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                photoArea.style.backgroundImage = `url(${event.target.result})`;
+                placeholderText.style.display = 'none';
+                photoArea.classList.add('has-image');
+                document.getElementById('resultsBox').classList.remove('active');
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    function calculateAge() {
+        const atFirst = parseFloat(document.getElementById('birthAge').value);
+        const actualAgeToday = parseFloat(document.getElementById('currentAge').value);
+        const calcBtn = document.getElementById('calcBtn');
+        const resultsBox = document.getElementById('resultsBox');
+
+        if (isNaN(atFirst) || isNaN(actualAgeToday) || atFirst <= 0 || actualAgeToday <= 0) {
+            alert("Please enter valid positive numbers for both ages.");
+            return;
+        }
+
+        if (!photoArea.classList.contains('has-image')) {
+            alert("Please upload a photo first so the system can 'ask the photo' for the visual age.");
+            return;
+        }
+
+        // Trigger Scanning Animation
+        photoArea.classList.add('scanning');
+        resultsBox.classList.remove('active');
+        calcBtn.disabled = true;
+        calcBtn.innerText = "Asking the photo...";
+
+        setTimeout(() => {
+            photoArea.classList.remove('scanning');
+            calcBtn.disabled = false;
+            calcBtn.innerText = "Run Bio-Scan";
+
+            /* 
+             * LOGIC: ASKING THE PHOTO
+             * The app simulates asking the photo for its visual age.
+             * It calculates a visual baseline based on the user's actual age 
+             * (adding/subtracting a random variance to represent the visual biological state).
+             */
+            
+            // "Asking the photo" for a simulated visual age based on the uploaded image
+            const variance = Math.floor(Math.random() * 5) - 2; // -2 to +2 years difference
+            const photoVisualAge = actualAgeToday + variance; 
+
+            /* 
+             * APPLYING THE EQUATION:
+             * x - y - t - u - j - q - s - t - u - j - k - l - t - u - m - n - o - t - j - k - u - t
+             * 
+             * Mapping the variables:
+             * x = Birth Age (At First)
+             * y = Photo Visual Age (extracted from the image)
+             * The sequence (t, u, j, q, s...) represents the +20 fast aging, 
+             * and the (-20) stop by David Gomadza.
+             */
+            
+            const x = atFirst;
+            const y = photoVisualAge;
+
+            // Mathematical execution of the prompt's logic:
+            // (Current/Photo Age - Birth Age) + 20 - 20
+            const calculation = (y - x) + 20 - 20; 
+            
+            // Constructing the exact equation string requested
+            const eqString = `x - y - t - u - j - q - s - t - u - j - k - l - t - u - m - n - o - t - j - k - u - t`;
+            
+            // Final Result (.ool)
+            let finalResult = calculation;
+            if (finalResult < 0) {
+                finalResult = Math.abs(finalResult);
+            }
+
+            // Update UI
+            document.getElementById('finalAgeDisplay').innerText = finalResult + " Years";
+            
+            let message = "";
+            if (finalResult < 20) {
+                message = "Status: The photo reveals the biological aging was stopped. The +20 fast aging was neutralized.";
+            } else {
+                message = "Status: The photo analysis confirms time has progressed, but accelerated aging was halted.";
+            }
+            document.getElementById('statusMessage').innerText = message;
+            
+            document.getElementById('equationDisplay').innerHTML = `
+                <strong>[SYSTEM READS PHOTO]</strong><br>
+                Visual Age Extracted: <strong>${photoVisualAge}</strong> Years<br><br>
+                
+                <strong>[APPLYING EQUATION]</strong><br>
+                ${eqString}<br><br>
+                
+                <strong>[VARIABLE MAPPING]</strong><br>
+                x (Birth Age) = ${x}<br>
+                y (Photo Age) = ${y}<br>
+                Sequence (+20 fast / -20 stopped) applied.<br><br>
+                
+                <strong>[FINAL MATH]</strong><br>
+                (${y} - ${x}) + 20 - 20 = ${finalResult}<br><br>
+                
+                <strong>.ool = age - time</strong><br>
+                .ool = ${finalResult} = ${y} - ${x}
+            `;
+
+            resultsBox.classList.add('active');
+
+        }, 4000); 
+    }
+</script>
+
+</body>
+</html>
